@@ -3,6 +3,8 @@ title: "OAuth"
 ---
 
 ```{r, include = FALSE}
+has_pipe <- getRversion() >= "4.1.0"
+
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
@@ -199,6 +201,7 @@ If we make a request to this endpoint without authentication, we'll get an error
 
 ```{r}
 #| error: true
+#| eval: has_pipe
 req <- request("https://api.github.com/user")
 req |> 
   req_perform()
