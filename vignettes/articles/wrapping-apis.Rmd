@@ -8,9 +8,12 @@ vignette: >
 ---
 
 ```{r, include = FALSE}
+has_pipe <- getRversion() >= "4.3.0"
+
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  eval = has_pipe
 )
 ```
 
@@ -28,6 +31,7 @@ I assume you're familiar with the basics of building a package.
 If not, you might want to read the "[The Whole Game](https://r-pkgs.org/whole-game.html)" chapter of [R packages](https://r-pkgs.org) first.
 
 ```{r setup}
+#| eval: true
 library(httr2)
 ```
 
@@ -243,6 +247,7 @@ There are three basic steps to this process:
 1.  You create an **encryption** key with `secret_make_key()` that is used to scramble and descramble secrets using symmetric cryptography:
 
     ```{r}
+    #| eval: true
     key <- secret_make_key()
     key
     ```
@@ -252,6 +257,7 @@ There are three basic steps to this process:
 2.  You scramble your secrets with `secret_encrypt()` and store the resulting text directly in the source code of your package:
 
     ```{r}
+    #| eval: true
     secret_scrambled <- secret_encrypt("secret I need to work with an API", key)
     secret_scrambled
     ```
@@ -259,6 +265,7 @@ There are three basic steps to this process:
 3.  When needed, you descramble the secret using `secret_decrypt()`:
 
     ```{r}
+    #| eval: true
     secret_decrypt(secret_scrambled, key)
     ```
 
@@ -275,6 +282,7 @@ YOURPACKAGE_KEY=key_you_generated_with_secret_make_key
 ```
 
 ```{r, include = FALSE}
+#| eval: true
 Sys.setenv(YOURPACKAGE_KEY = secret_make_key())
 ```
 
@@ -282,6 +290,7 @@ Now (after you restart R), you'll be able to take advantage of a special `secret
 In fact, this is most natural usage.
 
 ```{r}
+#| eval: true
 secret_scrambled <- secret_encrypt("secret I need to work with an API", "YOURPACKAGE_KEY")
 secret_scrambled
 secret_decrypt(secret_scrambled, "YOURPACKAGE_KEY")
@@ -317,6 +326,7 @@ So if you want to share your package on CRAN or make it easy for others to contr
 ## NYTimes Books API
 
 ```{r include = FALSE}
+#| eval: true
 has_auth <- secret_has_key("HTTR2_KEY") && 
   # Don't run in R CMD check on GHA because it hits NYTimes rate limits
   !identical(Sys.getenv("GITHUB_WORKFLOW"), "R-CMD-check")
@@ -333,6 +343,7 @@ When you're wrapping an API that has a key you're going to face two struggles:
 So now you can understand how the following code works to get my NYTimes Book API key:
 
 ```{r}
+#| eval: true
 my_key <- secret_decrypt("4Nx84VPa83dMt3X6bv0fNBlLbv3U4D1kHM76YisKEfpCarBm1UHJHARwJHCFXQSV", "HTTR2_KEY")
 ```
 
@@ -393,7 +404,7 @@ resp |> resp_body_json()
 It looks like there's some useful additional info in the `faultstring`:
 
 ```{r}
-resp |> resp_body_json() |> .$fault |> .$faultstring
+resp |> resp_body_json() |> _$fault |> _$faultstring
 ```
 
 To add that information to future errors we can use the `body` argument to `req_error()`.
@@ -402,7 +413,7 @@ Once we do that and re-fetch the request, we see the additional information disp
 
 ```{r, error = TRUE}
 nytimes_error_body <- function(resp) {
-  resp |> resp_body_json() |> .$fault |> .$faultstring
+  resp |> resp_body_json() |> _$fault |> _$faultstring
 }
 
 resp <- request("https://api.nytimes.com/svc/books/v3") |> 
@@ -478,6 +489,7 @@ A good place to start is an environment variable, because environment variables 
 Then you'd write a function to retrieve the API key, returning a helpful message if it's not found:
 
 ```{r}
+#| eval: true
 get_api_key <- function() {
   key <- Sys.getenv("NYTIMES_KEY")
   if (identical(key, "")) {
@@ -491,6 +503,7 @@ Then you could modify `nytimes_books()` to use `get_api_key()` as the default va
 Since the argument is now optional, we can move it to end of the argument list, since it'll only be needed in exceptional circumstances.
 
 ```{r, eval = FALSE}
+#| eval: true
 nytimes_books <- function(path, ..., api_key = get_api_key()) {
   ...
 }
@@ -499,6 +512,7 @@ nytimes_books <- function(path, ..., api_key = get_api_key()) {
 You can make this approach a little more user friendly by providing a helper that sets the environment variable:
 
 ```{r}
+#| eval: true
 set_api_key <- function(key = NULL) {
   if (is.null(key)) {
     key <- askpass::askpass("Please enter your API key")
@@ -512,6 +526,7 @@ Using askpass (or similar) here is good practice since you don't want to encoura
 It's a good idea to extend `get_api_key()` to automatically use your encrypted key to make it easier to write tests:
 
 ```{r}
+#| eval: true
 get_api_key <- function() {
   key <- Sys.getenv("NYTIMES_KEY")
   if (!identical(key, "")) {
@@ -550,6 +565,7 @@ This lets each use case have a minimal set of permissions, and you can easily re
 I created a personal access token specifically for this vignette that can only access gists, and, as in the last example, stored an encrypted version in this vignette:
 
 ```{r}
+#| eval: true
 token <- secret_decrypt("Guz59woxKoIO_JVtp2IzU3mFIU3ULtaUEa8xvvpYUBdVthR8jhxzc3bMZFhA9HL-ZK6YZudOI6g", "HTTR2_KEY")
 ```
 
@@ -603,6 +619,7 @@ resp |> resp_body_json()
 I'll proceed anyway, writing a function that extracts the data and formats it for presentation to the user:
 
 ```{r}
+#| eval: true
 gist_error_body <- function(resp) {
   body <- resp_body_json(resp)
   
@@ -643,6 +660,7 @@ The first tells us whether or not a response has a transient error, i.e. it's wo
 For GitHub, when the rate limit is [exceeded](https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting), the response has a 403 status and a `X-RateLimit-Remaining: 0` header:
 
 ```{r}
+#| eval: true
 gist_is_transient <- function(resp) {
   resp_status(resp) == 403 && 
     resp_header(resp, "X-RateLimit-Remaining") == "0"
@@ -655,9 +673,10 @@ GitHub tells us when the rate limit resets (as number of seconds since 1970-01-0
 To convert that to a number of seconds to wait we first convert it to a number (since HTTP headers are always strings), then subtract off the current time (in number of seconds since 1970-01-01):
 
 ```{r}
+#| eval: true
 gist_after <- function(resp) {
   time <- as.numeric(resp_header(resp, "X-RateLimit-Reset"))
-  time - unclass(Sys.time())
+  time <- unclass(Sys.time())
 }
 gist_after(resp)
 ```
@@ -721,7 +740,7 @@ Here I'll extract the gist ID so we can use it in the next examples, culminating
 
 ```{r}
 resp <- req |> req_perform()
-id <- resp |> resp_body_json() |> .$id
+id <- resp |> resp_body_json() |> _$id
 id
 ```
 
