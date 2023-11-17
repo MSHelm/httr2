@@ -36,6 +36,12 @@ library(httr2)
 ```
 
 ## Faker API
+```{r, include = FALSE}
+#| eval: true
+# If we have no base pipe available, the faker call will not work anyway, 
+# so set faker_ok directly to FALSE
+faker_ok <- ifelse(has_pipe, TRUE, FALSE)
+```
 
 ```{r, include = FALSE}
 # Seems to return 500s from time-to-time, so avoid any problems
@@ -343,7 +349,6 @@ When you're wrapping an API that has a key you're going to face two struggles:
 So now you can understand how the following code works to get my NYTimes Book API key:
 
 ```{r}
-#| eval: true
 my_key <- secret_decrypt("4Nx84VPa83dMt3X6bv0fNBlLbv3U4D1kHM76YisKEfpCarBm1UHJHARwJHCFXQSV", "HTTR2_KEY")
 ```
 
@@ -489,7 +494,6 @@ A good place to start is an environment variable, because environment variables 
 Then you'd write a function to retrieve the API key, returning a helpful message if it's not found:
 
 ```{r}
-#| eval: true
 get_api_key <- function() {
   key <- Sys.getenv("NYTIMES_KEY")
   if (identical(key, "")) {
@@ -503,7 +507,6 @@ Then you could modify `nytimes_books()` to use `get_api_key()` as the default va
 Since the argument is now optional, we can move it to end of the argument list, since it'll only be needed in exceptional circumstances.
 
 ```{r, eval = FALSE}
-#| eval: true
 nytimes_books <- function(path, ..., api_key = get_api_key()) {
   ...
 }
@@ -512,7 +515,6 @@ nytimes_books <- function(path, ..., api_key = get_api_key()) {
 You can make this approach a little more user friendly by providing a helper that sets the environment variable:
 
 ```{r}
-#| eval: true
 set_api_key <- function(key = NULL) {
   if (is.null(key)) {
     key <- askpass::askpass("Please enter your API key")
@@ -526,7 +528,6 @@ Using askpass (or similar) here is good practice since you don't want to encoura
 It's a good idea to extend `get_api_key()` to automatically use your encrypted key to make it easier to write tests:
 
 ```{r}
-#| eval: true
 get_api_key <- function() {
   key <- Sys.getenv("NYTIMES_KEY")
   if (!identical(key, "")) {
@@ -565,7 +566,6 @@ This lets each use case have a minimal set of permissions, and you can easily re
 I created a personal access token specifically for this vignette that can only access gists, and, as in the last example, stored an encrypted version in this vignette:
 
 ```{r}
-#| eval: true
 token <- secret_decrypt("Guz59woxKoIO_JVtp2IzU3mFIU3ULtaUEa8xvvpYUBdVthR8jhxzc3bMZFhA9HL-ZK6YZudOI6g", "HTTR2_KEY")
 ```
 
@@ -619,7 +619,6 @@ resp |> resp_body_json()
 I'll proceed anyway, writing a function that extracts the data and formats it for presentation to the user:
 
 ```{r}
-#| eval: true
 gist_error_body <- function(resp) {
   body <- resp_body_json(resp)
   
@@ -660,7 +659,6 @@ The first tells us whether or not a response has a transient error, i.e. it's wo
 For GitHub, when the rate limit is [exceeded](https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting), the response has a 403 status and a `X-RateLimit-Remaining: 0` header:
 
 ```{r}
-#| eval: true
 gist_is_transient <- function(resp) {
   resp_status(resp) == 403 && 
     resp_header(resp, "X-RateLimit-Remaining") == "0"
@@ -673,7 +671,6 @@ GitHub tells us when the rate limit resets (as number of seconds since 1970-01-0
 To convert that to a number of seconds to wait we first convert it to a number (since HTTP headers are always strings), then subtract off the current time (in number of seconds since 1970-01-01):
 
 ```{r}
-#| eval: true
 gist_after <- function(resp) {
   time <- as.numeric(resp_header(resp, "X-RateLimit-Reset"))
   time <- unclass(Sys.time())
